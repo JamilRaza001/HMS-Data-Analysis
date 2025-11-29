@@ -13,10 +13,9 @@ st.markdown("Real-time insights into Doctor Performance, Patient Demographics, a
 # Try to get API URL from secrets (for cloud deployment), else default to local
 try:
     API_URL = st.secrets["api_url"]
-except FileNotFoundError:
-    API_URL = "http://localhost:8000/api/v1/analytics/doctor-patient-insights"
 except Exception:
-    API_URL = "http://localhost:8000/api/v1/analytics/doctor-patient-insights"
+    # Fallback to Vercel URL if secrets are missing (e.g. local run without secrets.toml)
+    API_URL = "https://hms-data-analysis.vercel.app/api/v1/analytics/doctor-patient-insights"
 
 # Sidebar
 st.sidebar.header("Dashboard Settings")
