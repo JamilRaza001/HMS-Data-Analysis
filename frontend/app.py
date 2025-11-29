@@ -10,34 +10,34 @@ st.title("🏥 HMS Doctor-Patient Analytics Dashboard")
 st.markdown("Real-time insights into Doctor Performance, Patient Demographics, and Clinical Demand.")
 
 # --- Configuration ---
-# Try to get API URL from secrets (for cloud deployment), else default to local
+# Production: Use Vercel URL as default, can be overridden by secrets
 try:
     API_URL = st.secrets["api_url"]
 except Exception:
-    # Fallback to Vercel URL if secrets are missing (e.g. local run without secrets.toml)
+    # Default to Vercel deployment
     API_URL = "https://hms-data-analysis.vercel.app/api/v1/analytics/doctor-patient-insights"
 
 # Sidebar
 st.sidebar.header("Dashboard Settings")
-st.sidebar.text(f"API Source: {API_URL}")
+st.sidebar.text(f"API: {API_URL.split('/api/')[0]}")
 if st.sidebar.button("🔄 Refresh Data"):
     st.cache_data.clear()
     st.rerun()
 
 # --- Data Fetching ---
-# @st.cache_data(ttl=600)  <-- Disabled for debugging
+@st.cache_data(ttl=600)
 def fetch_data():
-    st.write(f"DEBUG: Fetching from {API_URL}")
     try:
-        response = requests.get(API_URL)
+        response = requests.get(API_URL, timeout=30)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.ConnectionError:
-        st.error(f"❌ Connection Error: Could not connect to `{API_URL}`. Is the backend running?")
+        st.error(f"❌ Connection Error: Could not connect to the backend API.")
+        st.info("💡 Please check your internet connection and ensure the backend is deployed.")
         return []
     except requests.exceptions.HTTPError as e:
         st.error(f"❌ HTTP Error: {e}")
-        st.write(response.text) # Show backend error details
+        st.error("The backend returned an error. Please contact support.")
         return []
     except Exception as e:
         st.error(f"❌ Unexpected Error: {e}")
@@ -46,7 +46,7 @@ def fetch_data():
 data = fetch_data()
 
 if not data:
-    st.info("💡 Tip: If running locally, make sure to start the backend with `uvicorn backend.main:app --reload`.")
+    st.warning("⚠️ No data available. Please ensure the backend API is running.")
     st.stop()
 
 # --- Visualization Helper ---
@@ -69,7 +69,7 @@ def render_insight(insight):
         
         if chart_type == 'bar':
             fig = px.bar(df, x='Label', y='Value', text='Value', template="plotly_white", color='Value')
-            fig.update_layout(xaxis_title=None, yaxis_title=None)
+            fig.update_layout(xaxis_title=None, yaxis_title=None, showlegend=False)
             st.plotly_chart(fig, use_container_width=True)
         elif chart_type == 'pie':
             fig = px.pie(df, names='Label', values='Value', template="plotly_white", hole=0.4)
@@ -82,7 +82,7 @@ def render_insight(insight):
             st.dataframe(df, use_container_width=True)
 
 # --- Layout & Categorization ---
-# We'll categorize based on keywords since the API returns a flat list
+# Categorize insights based on keywords
 doc_keywords = ['Doctor', 'Revenue', 'Pediatricians', 'Fee']
 patient_keywords = ['Patient', 'Age', 'Gender', 'City', 'Locations', 'Retention']
 clinical_keywords = ['OPD', 'Emergency', 'Medicine', 'Diagnosis', 'Visits', 'Prescription', 'Hours']
@@ -105,21 +105,35 @@ tab1, tab2, tab3 = st.tabs(["👨‍⚕️ Doctor Performance", "🏥 Clinical D
 
 with tab1:
     st.header("Doctor Performance & Revenue")
-    cols = st.columns(2)
-    for i, insight in enumerate(doc_insights):
-        with cols[i % 2]:
-            render_insight(insight)
+    if doc_insights:
+        cols = st.columns(2)
+        for i, insight in enumerate(doc_insights):
+            with cols[i % 2]:
+                render_insight(insight)
+    else:
+        st.info("No doctor performance insights available.")
 
 with tab2:
     st.header("Clinical Demand & Trends")
-    cols = st.columns(2)
-    for i, insight in enumerate(clinical_insights):
-        with cols[i % 2]:
-            render_insight(insight)
+    if clinical_insights:
+        cols = st.columns(2)
+        for i, insight in enumerate(clinical_insights):
+            with cols[i % 2]:
+                render_insight(insight)
+    else:
+        st.info("No clinical demand insights available.")
 
 with tab3:
     st.header("Patient Demographics")
-    cols = st.columns(2)
-    for i, insight in enumerate(patient_insights):
-        with cols[i % 2]:
-            render_insight(insight)
+    if patient_insights:
+        cols = st.columns(2)
+        for i, insight in enumerate(patient_insights):
+            with cols[i % 2]:
+                render_insight(insight)
+    else:
+        st.info("No patient demographic insights available.")
+
+# Footer
+st.sidebar.markdown("---")
+st.sidebar.caption("HMS Analytics Microservice v1.0")
+st.sidebar.caption(f"Total Insights: {len(data)}")
