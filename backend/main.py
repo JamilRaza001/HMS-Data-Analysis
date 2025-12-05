@@ -18,8 +18,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Path to the CSV file (assumed to be in the parent directory of backend/)
-DATA_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'PatientAppointmentEntry.csv')
+# Path to the CSV file - works on both local and Vercel environments
+def get_data_file_path():
+    """Find the CSV file in multiple possible locations."""
+    possible_paths = [
+        # Local development: CSV in parent of backend/
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), 'PatientAppointmentEntry.csv'),
+        # Vercel: CSV in same directory as main.py (backend/)
+        os.path.join(os.path.dirname(__file__), 'PatientAppointmentEntry.csv'),
+        # Vercel fallback: Current working directory
+        os.path.join(os.getcwd(), 'PatientAppointmentEntry.csv'),
+        # Vercel fallback: Root of project
+        '/var/task/PatientAppointmentEntry.csv',
+        '/var/task/backend/PatientAppointmentEntry.csv',
+    ]
+    for path in possible_paths:
+        if os.path.exists(path):
+            return path
+    # Return the first path as default (will show helpful error)
+    return possible_paths[0]
+
+DATA_FILE = get_data_file_path()
 
 
 # ===================== HOME & INFO ROUTES =====================
